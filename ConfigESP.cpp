@@ -4,7 +4,7 @@
 #include <LiquidCrystal.h>
 
 // ==== CONFIGURACIÓN LCD ====
-const int rs = 25, en = 26, d4 = 27, d5 = 14, d6 = 12, d7 = 13;
+const int rs = 33, en = 25, d4 = 26, d5 = 27, d6 = 14, d7 = 13;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 // ==== POTENCIÓMETRO ====
@@ -37,22 +37,23 @@ void executeSPICommand(String cmd) {
     case 1: digitalWrite(ledR, HIGH); lastLED = 'R'; break;
     case 2: digitalWrite(ledG, HIGH); lastLED = 'G'; break;
     case 3: digitalWrite(ledB, HIGH); lastLED = 'B'; break;
+    default: return; // Si no es 1,2,3 no hace nada
   }
 
   delay(timeMs);
 
+  // Apagar todos después del tiempo
   digitalWrite(ledR, LOW);
   digitalWrite(ledG, LOW);
   digitalWrite(ledB, LOW);
 }
 
 // ==== I2C configuración ====
-#define I2C_ADDRESS 0x28  // Puedes cambiarlo según tu configuración
+#define I2C_ADDRESS 0x28
 
 void requestEvent() {
   int potValue = analogRead(potPin);
-  Wire.write((uint8_t)(potValue >> 8));
-  Wire.write((uint8_t)(potValue & 0xFF));
+  Wire.write((uint8_t)potValue); // Enviando solo 0-255
 }
 
 // ==== SETUP ====
@@ -68,12 +69,12 @@ void setup() {
   pinMode(ledG, OUTPUT);
   pinMode(ledB, OUTPUT);
 
-  // SPI (modo maestro simulado)
-  SPI.begin(); // SPI como master (ESP32 no soporta esclavo por defecto)
+  // SPI (simulación)
+  SPI.begin();
 
   // I2C esclavo
-  Wire.begin(I2C_ADDRESS);
-  Wire.onRequest(requestEvent);
+  //Wire.begin(I2C_ADDRESS);
+  //Wire.onRequest(requestEvent);
 
   delay(1000);
   lcd.clear();
@@ -81,22 +82,23 @@ void setup() {
 
 // ==== LOOP ====
 void loop() {
-  // Simulación de recepción SPI por Serial (para pruebas)
+  // Recepción de comando Serial
   if (Serial.available()) {
     spiCommand = Serial.readStringUntil('\n');
     newCommand = true;
   }
 
-  // Si llega comando SPI, ejecutarlo
+  // Ejecutar comando si llegó
   if (newCommand) {
     executeSPICommand(spiCommand);
     spiCommand = "";
     newCommand = false;
   }
 
-  // Leer potenciómetro
+  // Leer potenciómetro y mapear 0-255
   int potValue = analogRead(potPin);
-  float voltage = (potValue / 4095.0) * 3.3;
+  potValue = map(potValue, 0, 4095, 0, 255);
+  float voltage = (potValue / 255.0) * 3.3;
 
   // Mostrar en LCD
   lcd.setCursor(0, 0);
@@ -109,7 +111,7 @@ void loop() {
   lcd.print("Val:");
   lcd.setCursor(5, 1);
   lcd.print(potValue);
-  lcd.print("    ");
+  lcd.print("   ");
 
   lcd.setCursor(11, 1);
   lcd.print("LED:");
