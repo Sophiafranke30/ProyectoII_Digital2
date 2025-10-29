@@ -1,9 +1,10 @@
+#include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <LiquidCrystal.h>
 
 // ==== CONFIGURACIÓN LCD ====
-const int rs = 33, en = 26, d4 = 27, d5 = 14, d6 = 12, d7 = 13;
+const int rs = 25, en = 26, d4 = 27, d5 = 14, d6 = 12, d7 = 13;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 // ==== POTENCIÓMETRO ====
@@ -16,19 +17,10 @@ const int ledB = 4;
 char lastLED = '-';
 
 // ==== VARIABLES ====
-volatile String spiCommand = "";
-volatile bool newCommand = false;
+String spiCommand = "";
+bool newCommand = false;
 
-// ==== SPI callbacks ====
-void onReceiveSPI(byte data) {
-  if (data == '\n') {
-    newCommand = true;
-  } else {
-    spiCommand += (char)data;
-  }
-}
-
-// ==== Función para ejecutar comando SPI ====
+// ==== FUNCIONES ====
 void executeSPICommand(String cmd) {
   int comma = cmd.indexOf(',');
   if (comma == -1) return;
@@ -55,12 +47,12 @@ void executeSPICommand(String cmd) {
 }
 
 // ==== I2C configuración ====
-#define I2C_ADDRESS 0x28  // puedes cambiarlo si la Nucleo usa otro
+#define I2C_ADDRESS 0x28  // Puedes cambiarlo según tu configuración
 
 void requestEvent() {
   int potValue = analogRead(potPin);
-  Wire.write((byte)(potValue >> 8));
-  Wire.write((byte)(potValue & 0xFF));
+  Wire.write((uint8_t)(potValue >> 8));
+  Wire.write((uint8_t)(potValue & 0xFF));
 }
 
 // ==== SETUP ====
@@ -76,9 +68,8 @@ void setup() {
   pinMode(ledG, OUTPUT);
   pinMode(ledB, OUTPUT);
 
-  // SPI esclavo (modo simplificado)
-  SPI.begin();
-  SPI.onReceive(onReceiveSPI);
+  // SPI (modo maestro simulado)
+  SPI.begin(); // SPI como master (ESP32 no soporta esclavo por defecto)
 
   // I2C esclavo
   Wire.begin(I2C_ADDRESS);
@@ -90,6 +81,12 @@ void setup() {
 
 // ==== LOOP ====
 void loop() {
+  // Simulación de recepción SPI por Serial (para pruebas)
+  if (Serial.available()) {
+    spiCommand = Serial.readStringUntil('\n');
+    newCommand = true;
+  }
+
   // Si llega comando SPI, ejecutarlo
   if (newCommand) {
     executeSPICommand(spiCommand);
@@ -109,14 +106,14 @@ void loop() {
   lcd.print("v   ");
 
   lcd.setCursor(0, 1);
-  lcd.print("Pot1:");
-  lcd.setCursor(6, 1);
+  lcd.print("Val:");
+  lcd.setCursor(5, 1);
   lcd.print(potValue);
   lcd.print("    ");
 
-  lcd.setCursor(13, 1);
+  lcd.setCursor(11, 1);
   lcd.print("LED:");
-  lcd.setCursor(17, 1);
+  lcd.setCursor(15, 1);
   lcd.print(lastLED);
 
   delay(300);
